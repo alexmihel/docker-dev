@@ -1,4 +1,10 @@
 /projects/*
+!/projects/.gitkeep
+
 /shared/certs/*
-/traefik/logs
+!/shared/certs/.gitkeep
+
+/traefik/logs/*
+!/traefik/logs/.gitkeep
+
 .DS_Store
