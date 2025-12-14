@@ -1,0 +1,4 @@
+/projects/*
+/shared/certs/*
+/traefik/logs
+.DS_Store
