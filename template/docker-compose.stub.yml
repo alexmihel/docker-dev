@@ -1,0 +1,72 @@
+services:
+  app:
+    build:
+      context: ../../shared/php
+    container_name: {{PROJECT}}.prj.loc-php
+    volumes:
+      - ./{{PROJECT}}:/var/www/html
+    environment:
+      - XDEBUG_MODE=debug
+      - XDEBUG_CONFIG=client_host=host.docker.internal client_port=9003 idekey=PHPSTORM start_with_request=yes
+    networks:
+      - proxy
+      - internal
+
+  nginx:
+    image: nginx:stable
+    container_name: {{PROJECT}}.prj.loc-nginx
+    volumes:
+      - ./src:/var/www/html
+      - ../../shared/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{PROJECT}}.rule=Host(`{{PROJECT}}.prj.loc`)"
+      - "traefik.http.routers.{{PROJECT}}.entrypoints=websecure"
+      - "traefik.http.routers.{{PROJECT}}.tls=true"
+      - "traefik.http.routers.{{PROJECT}}.middlewares=https-redirect"
+      - "traefik.http.services.{{PROJECT}}.loadbalancer.server.port=80"
+
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
+
+  db:
+    image: postgres:15
+    container_name: {{PROJECT}}.prj.loc-db
+    environment:
+      POSTGRES_USER: laravel
+      POSTGRES_PASSWORD: laravel
+      POSTGRES_DB: db_{{PROJECT}}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:alpine
+    container_name: {{PROJECT}}.prj.loc-redis
+    networks:
+      - internal
+
+  node:
+    image: node:20
+    container_name: {{PROJECT}}.prj.loc-node
+    working_dir: /var/www/html
+    volumes:
+      - ./src:/var/www/html
+    command: tail -f /dev/null
+    networks:
+      - proxy
+      - internal
+
+networks:
+  proxy:
+    external: true
+  internal:
+
+volumes:
+  pgdata:
