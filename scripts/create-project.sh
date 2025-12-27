@@ -15,16 +15,20 @@ if [ -z "$PROJECT" ]; then
   exit 1
 fi
 
+DOMAIN="prj.loc"
+PROJECT_HOST="${PROJECT}.${DOMAIN}"
+
 # --------------------------------------------------
 # Paths
 # --------------------------------------------------
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECTS_DIR="$ROOT_DIR/projects"
-PROJECT_DIR="$PROJECTS_DIR/$PROJECT"
+PROJECT_DIR="$PROJECTS_DIR/$PROJECT_HOST"
 APP_DIR="$PROJECT_DIR/$PROJECT"
 
 TEMPLATE_COMPOSE="$ROOT_DIR/template/docker-compose.stub.yml"
 TEMPLATE_ENV="$ROOT_DIR/template/env.stub"
+NGINX_TEMPLATE="$ROOT_DIR/shared/nginx/default.conf"
 
 if [ ! -f "$TEMPLATE_COMPOSE" ]; then
   echo "❌ docker-compose stub not found:"
@@ -38,13 +42,19 @@ if [ ! -f "$TEMPLATE_ENV" ]; then
   exit 1
 fi
 
+if [ ! -f "$NGINX_TEMPLATE" ]; then
+  echo "❌ nginx default.conf not found:"
+  echo "   $NGINX_TEMPLATE"
+  exit 1
+fi
+
 if [ -d "$PROJECT_DIR" ]; then
-  echo "❌ Project '$PROJECT' already exists"
+  echo "❌ Project '$PROJECT_HOST' already exists"
   exit 1
 fi
 
 echo ""
-echo "🚀 Creating project: $PROJECT"
+echo "🚀 Creating project: $PROJECT_HOST"
 mkdir -p "$PROJECT_DIR"
 
 # --------------------------------------------------
@@ -63,17 +73,22 @@ read -rp "Choose [1/2/3]: " PROJECT_TYPE
 case "$PROJECT_TYPE" in
 
   1)
-    read -rp "Laravel version (default: latest): " LARAVEL_VERSION
-    LARAVEL_VERSION=${LARAVEL_VERSION:-latest}
+    read -rp "Laravel version (empty = latest, e.g. ^11.0): " LARAVEL_VERSION
 
-    echo "📦 Installing Laravel ($LARAVEL_VERSION)"
-
-    docker run --rm \
-      -v "$PROJECT_DIR:/app" \
-      -w /app \
-      laravelsail/php82-composer \
-      composer create-project laravel/laravel "$PROJECT" "$LARAVEL_VERSION"
-    ;;
+    if [ -z "$LARAVEL_VERSION" ]; then
+      docker run --rm \
+        -v "$PROJECT_DIR:/{{PROJECT}}_app" \
+        -w /{{PROJECT}}_app \
+        laravelsail/php82-composer \
+        composer create-project laravel/laravel "$PROJECT"
+    else
+      docker run --rm \
+        -v "$PROJECT_DIR:/{{PROJECT}}_app" \
+        -w /{{PROJECT}}_app \
+        laravelsail/php82-composer \
+        composer create-project laravel/laravel "$PROJECT" "$LARAVEL_VERSION"
+    fi
+    ;;   
 
   2)
     read -rp "Repository URL (git or https): " REPO_URL
@@ -103,18 +118,36 @@ esac
 # --------------------------------------------------
 echo "⚙️ Generate docker-compose.yml"
 
-sed "s/{{PROJECT}}/$PROJECT/g" "$TEMPLATE_COMPOSE" \
+sed \
+  -e "s/{{PROJECT}}/$PROJECT/g" \
+  -e "s/{{PROJECT_HOST}}/$PROJECT_HOST/g" \
+  "$TEMPLATE_COMPOSE" \
   > "$PROJECT_DIR/docker-compose.yml"
+
+# --------------------------------------------------
+# nginx config (PROJECT-SCOPED!)
+# --------------------------------------------------
+echo "🌐 Generate nginx config"
+
+mkdir -p "$PROJECT_DIR/nginx"
+
+sed \
+  -e "s/{{PROJECT}}/$PROJECT/g" \
+  -e "s/{{PROJECT_HOST}}/$PROJECT_HOST/g" \
+  "$NGINX_TEMPLATE" \
+  > "$PROJECT_DIR/nginx/default.conf"
 
 # --------------------------------------------------
 # .env
 # --------------------------------------------------
 echo "🧩 Generate .env"
 
-sed "s/{{PROJECT}}/$PROJECT/g" "$TEMPLATE_ENV" \
+sed \
+  -e "s/{{PROJECT}}/$PROJECT/g" \
+  -e "s/{{PROJECT_HOST}}/$PROJECT_HOST/g" \
+  "$TEMPLATE_ENV" \
   > "$PROJECT_DIR/.env"
 
-# Sync env into app if exists
 if [ -f "$APP_DIR/.env.example" ]; then
   cp "$PROJECT_DIR/.env" "$APP_DIR/.env"
 fi
@@ -126,8 +159,8 @@ if [ -f "$APP_DIR/artisan" ]; then
   echo "🔑 Generate APP_KEY"
 
   docker run --rm \
-    -v "$APP_DIR:/app" \
-    -w /app \
+    -v "$APP_DIR:/{{PROJECT}}_app" \
+    -w /{{PROJECT}}_app \
     laravelsail/php82-composer \
     php artisan key:generate --force
 fi
@@ -136,6 +169,6 @@ fi
 # Done
 # --------------------------------------------------
 echo ""
-echo "✅ Project '$PROJECT' created"
+echo "✅ Project '$PROJECT_HOST' created"
 echo "📁 Code directory: $APP_DIR"
-echo "🌍 https://$PROJECT.prj.loc"
+echo "🌍 https://$PROJECT_HOST"

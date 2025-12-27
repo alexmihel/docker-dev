@@ -18,4 +18,8 @@ RUN apt-get update && apt-get install -y \
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+COPY conf.d/xdebug.ini /usr/local/etc/php/conf.d/99-xdebug.ini
+
+COPY php-fpm.d/zz-env.conf /usr/local/etc/php-fpm.d/zz-env.conf
+
 WORKDIR /var/www/html
