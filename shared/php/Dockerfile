@@ -4,6 +4,7 @@ FROM php:8.2-fpm
 RUN apt-get update && apt-get install -y \
     git unzip libpq-dev supervisor mc \
     libzip-dev libpng-dev libjpeg-dev libfreetype6-dev \
+    libmagickwand-dev \              
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         pdo \
@@ -12,8 +13,9 @@ RUN apt-get update && apt-get install -y \
         zip \
         gd \
         exif \
-    && pecl install redis xdebug \
-    && docker-php-ext-enable redis xdebug exif
+    && pecl install redis xdebug imagick \  
+    && docker-php-ext-enable redis xdebug exif imagick \  
+    && apt-get clean && rm -rf /var/lib/apt/lists/*  
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

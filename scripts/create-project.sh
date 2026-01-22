@@ -153,6 +153,29 @@ if [ -f "$APP_DIR/.env.example" ]; then
 fi
 
 # --------------------------------------------------
+# .env.local (personal, not committed)
+# --------------------------------------------------
+#ENV_LOCAL="$PROJECT_DIR/.env.local"
+
+#if [ ! -f "$ENV_LOCAL" ]; then
+#  echo "🔐 Create .env.local (personal, gitignored)"
+
+#  cat > "$ENV_LOCAL" <<EOF
+# Git
+#GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-""}
+#GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-""}
+#GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-""}
+#GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-""}
+
+# SSH
+#SSH_PRIVATE_KEY_PATH=${SSH_PRIVATE_KEY_PATH:-""}
+#SSH_PUBLIC_KEY_PATH=${SSH_PUBLIC_KEY_PATH:-""}
+#SSH_KNOWN_HOSTS_PATH=${SSH_KNOWN_HOSTS_PATH:-""}
+#EOF
+#fi
+
+
+# --------------------------------------------------
 # APP_KEY (only if Laravel)
 # --------------------------------------------------
 if [ -f "$APP_DIR/artisan" ]; then

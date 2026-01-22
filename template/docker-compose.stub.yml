@@ -5,13 +5,25 @@ services:
     container_name: {{PROJECT}}.prj.loc-php
     volumes:
       - ./{{PROJECT}}:/var/www/html
+      # SSH через env
+      - ${SSH_PRIVATE_KEY_PATH}:/root/.ssh/id_rsa:ro
+      - ${SSH_PUBLIC_KEY_PATH}:/root/.ssh/id_rsa.pub:ro
+      - ${SSH_KNOWN_HOSTS_PATH}:/root/.ssh/known_hosts:ro
     environment:
       PHP_IDE_CONFIG: serverName={{PROJECT}}.prj.loc
-      #- XDEBUG_MODE=debug
-      #- XDEBUG_CONFIG=client_host=host.docker.internal client_port=9003 idekey=PHPSTORM start_with_request=yes
+      GIT_AUTHOR_NAME:     ${GIT_AUTHOR_NAME}
+      GIT_AUTHOR_EMAIL:    ${GIT_AUTHOR_EMAIL}
+      GIT_COMMITTER_NAME:  ${GIT_COMMITTER_NAME}
+      GIT_COMMITTER_EMAIL: ${GIT_COMMITTER_EMAIL}
+
     networks:
       - proxy
       - internal
+
+    env_file:
+      - .env
+      - ../env.local   # ← персональный, gitignore
+      - ~/.docker-dev.env   # персональный, глобальный
 
   nginx:
     image: nginx:stable
@@ -46,6 +58,8 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - internal
+    ports:
+      - "5432:5432"
 
   redis:
     image: redis:alpine
