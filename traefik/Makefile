@@ -12,6 +12,3 @@ logs:
 
 composer-install:
 	docker compose exec app composer install
-
-dost:
-	cd ~/code/docker-dev/projects/dostoverno.prj.loc

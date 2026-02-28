@@ -1,7 +1,7 @@
 services:
   {{PROJECT}}_app:
     build:
-      context: ../../shared/php
+      context: ./docker
     container_name: {{PROJECT}}.prj.loc-php
     volumes:
       - ./{{PROJECT}}:/var/www/html
@@ -19,11 +19,6 @@ services:
     networks:
       - proxy
       - internal
-
-    env_file:
-      - .env
-      - ../env.local   # ← персональный, gitignore
-      - ~/.docker-dev.env   # персональный, глобальный
 
   nginx:
     image: nginx:stable
@@ -59,11 +54,31 @@ services:
     networks:
       - internal
     ports:
-      - "5432:5432"
+      - "{{DB_PORT}}:5432"
 
   redis:
     image: redis:alpine
     container_name: {{PROJECT}}.prj.loc-redis
+    networks:
+      - internal
+
+  worker:
+    build:
+      context: ./docker
+    container_name: {{PROJECT}}.prj.loc-worker
+    command: php artisan queue:work redis --queue=default --sleep=3 --tries=3 --max-time=3600
+    volumes:
+      - ./{{PROJECT}}:/var/www/html
+    depends_on:
+      - redis
+      - db
+    environment:
+      PHP_IDE_CONFIG: serverName={{PROJECT}}.prj.loc
+      GIT_AUTHOR_NAME:     ${GIT_AUTHOR_NAME}
+      GIT_AUTHOR_EMAIL:    ${GIT_AUTHOR_EMAIL}
+      GIT_COMMITTER_NAME:  ${GIT_COMMITTER_NAME}
+      GIT_COMMITTER_EMAIL: ${GIT_COMMITTER_EMAIL}
+    restart: unless-stopped
     networks:
       - internal
 
