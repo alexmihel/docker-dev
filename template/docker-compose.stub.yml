@@ -2,13 +2,16 @@ services:
   {{PROJECT}}_app:
     build:
       context: ./docker
+      args:
+        INSTALL_GD: "${INSTALL_GD:-false}"
+        INSTALL_IMAGICK: "${INSTALL_IMAGICK:-false}"
+        INSTALL_EXIF: "${INSTALL_EXIF:-false}"
     container_name: {{PROJECT}}.prj.loc-php
     volumes:
       - ./{{PROJECT}}:/var/www/html
-      # SSH через env
-      - ${SSH_PRIVATE_KEY_PATH}:/root/.ssh/id_rsa:ro
-      - ${SSH_PUBLIC_KEY_PATH}:/root/.ssh/id_rsa.pub:ro
-      - ${SSH_KNOWN_HOSTS_PATH}:/root/.ssh/known_hosts:ro
+      - ${SSH_PRIVATE_KEY_PATH}:/tmp/ssh/id_rsa:ro
+      - ${SSH_PUBLIC_KEY_PATH}:/tmp/ssh/id_rsa.pub:ro
+      - ${SSH_KNOWN_HOSTS_PATH}:/tmp/ssh/known_hosts:ro
     environment:
       PHP_IDE_CONFIG: serverName={{PROJECT}}.prj.loc
       GIT_AUTHOR_NAME:     ${GIT_AUTHOR_NAME}
@@ -65,6 +68,10 @@ services:
   worker:
     build:
       context: ./docker
+      args:
+        INSTALL_GD: "${INSTALL_GD:-false}"
+        INSTALL_IMAGICK: "${INSTALL_IMAGICK:-false}"
+        INSTALL_EXIF: "${INSTALL_EXIF:-false}"
     container_name: {{PROJECT}}.prj.loc-worker
     command: php artisan queue:work redis --queue=default --sleep=3 --tries=3 --max-time=3600
     volumes:

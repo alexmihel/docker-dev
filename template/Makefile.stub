@@ -1,0 +1,105 @@
+APP={{PROJECT}}_app
+DB=db
+NODE=node
+
+# ── Docker ───────────────────────────────────────
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+restart:
+	docker compose down && docker compose up -d
+
+build:
+	docker compose build --no-cache
+
+logs:
+	docker compose logs -f
+
+logs-app:
+	docker compose logs -f $(APP)
+
+shell:
+	docker compose exec $(APP) bash
+
+# ── PHP / Composer ───────────────────────────────
+
+composer:
+	docker compose exec $(APP) composer $(cmd)
+
+composer-install:
+	docker compose exec $(APP) composer install
+
+artisan:
+	docker compose exec $(APP) php artisan $(cmd)
+
+tinker:
+	docker compose exec $(APP) php artisan tinker
+
+# ── Database ─────────────────────────────────────
+
+migrate:
+	docker compose exec $(APP) php artisan migrate
+
+seed:
+	docker compose exec $(APP) php artisan db:seed
+
+fresh:
+	docker compose exec $(APP) php artisan migrate:fresh --seed
+
+db-dump:
+	docker compose exec $(DB) pg_dump -U laravel db_{{PROJECT}} > ./dump_$$(date +%Y%m%d_%H%M%S).sql
+	@echo "✅ Dump saved"
+
+db-restore:
+	docker compose exec -T $(DB) psql -U laravel db_{{PROJECT}} < $(file)
+	@echo "✅ Dump restored"
+
+db-upload:
+	scp $(file) $(remote):~/dump.sql
+	@echo "✅ Dump uploaded to $(remote)"
+
+# ── Testing ──────────────────────────────────────
+
+test:
+	docker compose exec $(APP) php artisan test
+
+# ── Node / Frontend ──────────────────────────────
+
+npm-install:
+	docker compose exec $(NODE) npm install
+
+npm-dev:
+	docker compose exec $(NODE) npm run dev
+
+npm-build:
+	docker compose exec $(NODE) npm run build
+
+# ── SSH keys (for GitHub / Bitbucket) ────────────
+
+ssh-keygen:
+	docker compose exec $(APP) bash -c "\
+		ssh-keygen -t ed25519 -C '{{PROJECT}}@prj.loc' -f /root/.ssh/id_ed25519 -N '' \
+		&& echo '' \
+		&& echo '── Public key (copy and add to GitHub/Bitbucket) ──' \
+		&& cat /root/.ssh/id_ed25519.pub"
+
+ssh-show:
+	docker compose exec $(APP) cat /root/.ssh/id_ed25519.pub
+
+# ── Helpers ──────────────────────────────────────
+
+permissions:
+	docker compose exec $(APP) chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+cache-clear:
+	docker compose exec $(APP) php artisan optimize:clear
+
+.PHONY: up down restart build logs logs-app shell \
+        composer composer-install artisan tinker \
+        migrate seed fresh db-dump db-restore db-upload \
+        test npm-install npm-dev npm-build \
+        ssh-keygen ssh-show permissions cache-clear

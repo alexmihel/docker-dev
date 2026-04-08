@@ -28,6 +28,7 @@ APP_DIR="$PROJECT_DIR/$PROJECT"
 
 TEMPLATE_COMPOSE="$ROOT_DIR/template/docker-compose.stub.yml"
 TEMPLATE_ENV="$ROOT_DIR/template/env.stub"
+TEMPLATE_MAKEFILE="$ROOT_DIR/template/Makefile.stub"
 NGINX_TEMPLATE="$ROOT_DIR/shared/nginx/default.conf"
 DOCKER_TEMPLATE_DIR="$ROOT_DIR/template/docker"
 
@@ -70,13 +71,36 @@ if [ ! -d "$DOCKER_TEMPLATE_DIR" ]; then
 fi
 
 if [ -d "$PROJECT_DIR" ]; then
-  echo "❌ Project '$PROJECT_HOST' already exists"
-  exit 1
+  echo "⚠️  Directory '$PROJECT_HOST' already exists."
+  read -rp "Delete and recreate? [y/N]: " CONFIRM_DELETE
+  if [[ "$CONFIRM_DELETE" =~ ^[Yy]$ ]]; then
+    rm -rf "$PROJECT_DIR"
+    echo "🗑️  Removed '$PROJECT_HOST'"
+  else
+    echo "Aborted."
+    exit 1
+  fi
 fi
 
 echo ""
-read -rp "PHP version (default 8.2, e.g. 8.3): " PHP_VERSION
-PHP_VERSION="${PHP_VERSION:-8.2}"
+read -rp "PHP version (default 8.3, e.g. 8.2): " PHP_VERSION
+PHP_VERSION="${PHP_VERSION:-8.3}"
+
+PHP_MAJOR_MINOR="${PHP_VERSION//./}"
+COMPOSER_IMAGE="laravelsail/php${PHP_MAJOR_MINOR}-composer"
+
+# --------------------------------------------------
+# Optional PHP extensions
+# --------------------------------------------------
+echo ""
+echo "Optional PHP extensions (y/N for each):"
+read -rp "  GD (image processing):  " _GD
+read -rp "  Imagick (ImageMagick):  " _IMAGICK
+read -rp "  Exif (photo metadata):  " _EXIF
+
+INSTALL_GD="false";      [[ "$_GD"      =~ ^[Yy]$ ]] && INSTALL_GD="true"
+INSTALL_IMAGICK="false";  [[ "$_IMAGICK" =~ ^[Yy]$ ]] && INSTALL_IMAGICK="true"
+INSTALL_EXIF="false";     [[ "$_EXIF"    =~ ^[Yy]$ ]] && INSTALL_EXIF="true"
 
 echo ""
 echo "🚀 Creating project: $PROJECT_HOST (PHP $PHP_VERSION)"
@@ -98,21 +122,14 @@ read -rp "Choose [1/2/3]: " PROJECT_TYPE
 case "$PROJECT_TYPE" in
 
   1)
-    read -rp "Laravel version (empty = latest, e.g. ^11.0): " LARAVEL_VERSION
+    read -rp "Laravel version (default ^13.0, e.g. ^11.0): " LARAVEL_VERSION
+    LARAVEL_VERSION="${LARAVEL_VERSION:-^13.0}"
 
-    if [ -z "$LARAVEL_VERSION" ]; then
-      docker run --rm \
-        -v "$PROJECT_DIR:/{{PROJECT}}_app" \
-        -w /{{PROJECT}}_app \
-        laravelsail/php82-composer \
-        composer create-project laravel/laravel "$PROJECT"
-    else
-      docker run --rm \
-        -v "$PROJECT_DIR:/{{PROJECT}}_app" \
-        -w /{{PROJECT}}_app \
-        laravelsail/php82-composer \
-        composer create-project laravel/laravel "$PROJECT" "$LARAVEL_VERSION"
-    fi
+    docker run --rm \
+      -v "$PROJECT_DIR:/${PROJECT}_app" \
+      -w "/${PROJECT}_app" \
+      $COMPOSER_IMAGE \
+      composer create-project laravel/laravel "$PROJECT" "$LARAVEL_VERSION"
     ;;   
 
   2)
@@ -169,6 +186,16 @@ sed \
   > "$PROJECT_DIR/nginx/default.conf"
 
 # --------------------------------------------------
+# Makefile
+# --------------------------------------------------
+echo "📋 Generate Makefile"
+
+sed \
+  -e "s/{{PROJECT}}/$PROJECT/g" \
+  "$TEMPLATE_MAKEFILE" \
+  > "$PROJECT_DIR/Makefile"
+
+# --------------------------------------------------
 # docker/ (Dockerfile, configs, supervisor)
 # --------------------------------------------------
 echo "🐳 Generate docker/ (Dockerfile, configs, supervisor)"
@@ -185,6 +212,7 @@ sed \
 cp "$DOCKER_TEMPLATE_DIR/conf.d/xdebug.ini"               "$PROJECT_DIR/docker/conf.d/xdebug.ini"
 cp "$DOCKER_TEMPLATE_DIR/php-fpm.d/zz-env.conf"           "$PROJECT_DIR/docker/php-fpm.d/zz-env.conf"
 cp "$DOCKER_TEMPLATE_DIR/supervisor/supervisord.conf.stub" "$PROJECT_DIR/docker/supervisor/supervisord.conf"
+cp "$DOCKER_TEMPLATE_DIR/entrypoint.sh"                    "$PROJECT_DIR/docker/entrypoint.sh"
 
 # --------------------------------------------------
 # .env
@@ -220,6 +248,11 @@ GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL}"
 SSH_PRIVATE_KEY_PATH="${SSH_PRIVATE_KEY_PATH}"
 SSH_PUBLIC_KEY_PATH="${SSH_PUBLIC_KEY_PATH}"
 SSH_KNOWN_HOSTS_PATH="${SSH_KNOWN_HOSTS_PATH}"
+
+# Optional PHP extensions (set to "true" to enable, then run: make build)
+INSTALL_GD=${INSTALL_GD}
+INSTALL_IMAGICK=${INSTALL_IMAGICK}
+INSTALL_EXIF=${INSTALL_EXIF}
 EOF
 fi
 
@@ -256,7 +289,7 @@ if [ -f "$APP_DIR/composer.json" ]; then
   docker run --rm \
     -v "$APP_DIR:/app" \
     -w /app \
-    laravelsail/php82-composer \
+    $COMPOSER_IMAGE \
     composer install --no-interaction --prefer-dist
 fi
 
@@ -268,9 +301,9 @@ if [ -f "$APP_DIR/artisan" ]; then
   echo "🔑 Generate APP_KEY"
 
   docker run --rm \
-    -v "$APP_DIR:/{{PROJECT}}_app" \
-    -w /{{PROJECT}}_app \
-    laravelsail/php82-composer \
+    -v "$APP_DIR:/${PROJECT}_app" \
+    -w "/${PROJECT}_app" \
+    $COMPOSER_IMAGE \
     php artisan key:generate --force
 fi
 
