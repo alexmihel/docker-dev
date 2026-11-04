@@ -94,6 +94,9 @@ PHP_VERSION="${PHP_VERSION:-8.3}"
 PHP_MAJOR_MINOR="${PHP_VERSION//./}"
 COMPOSER_IMAGE="laravelsail/php${PHP_MAJOR_MINOR}-composer"
 
+# Run composer as the host user: on Linux, bind-mounted files would otherwise be root-owned.
+COMPOSER_RUN_ARGS="--user $(id -u):$(id -g) -e HOME=/tmp -e COMPOSER_HOME=/tmp/composer"
+
 # --------------------------------------------------
 # Optional PHP extensions
 # --------------------------------------------------
@@ -130,7 +133,7 @@ case "$PROJECT_TYPE" in
     read -rp "Laravel version (default ^13.0, e.g. ^11.0): " LARAVEL_VERSION
     LARAVEL_VERSION="${LARAVEL_VERSION:-^13.0}"
 
-    docker run --rm \
+    docker run --rm $COMPOSER_RUN_ARGS \
       -v "$PROJECT_DIR:/${PROJECT}_app" \
       -w "/${PROJECT}_app" \
       $COMPOSER_IMAGE \
@@ -166,7 +169,9 @@ esac
 echo "⚙️ Generate docker-compose.yml"
 
 DB_PORT=5433
-while lsof -i :"$DB_PORT" &>/dev/null 2>&1; do
+# Skip ports in use now (Docker's are root-owned, so lsof can't see them) and those of stopped projects.
+while (exec 3<>"/dev/tcp/127.0.0.1/$DB_PORT") 2>/dev/null \
+  || grep -qs "\"$DB_PORT:5432\"" "$PROJECTS_DIR"/*/docker-compose.yml; do
   DB_PORT=$((DB_PORT + 1))
 done
 
@@ -254,6 +259,10 @@ SSH_PRIVATE_KEY_PATH="${SSH_PRIVATE_KEY_PATH}"
 SSH_PUBLIC_KEY_PATH="${SSH_PUBLIC_KEY_PATH}"
 SSH_KNOWN_HOSTS_PATH="${SSH_KNOWN_HOSTS_PATH}"
 
+# Host user (containers run as this UID/GID so files stay editable on the host)
+HOST_UID=$(id -u)
+HOST_GID=$(id -g)
+
 # Optional PHP extensions (set to "true" to enable, then run: make build)
 INSTALL_GD=${INSTALL_GD}
 INSTALL_IMAGICK=${INSTALL_IMAGICK}
@@ -309,7 +318,7 @@ fi
 if [ -f "$APP_DIR/composer.json" ]; then
   echo "📦 Install composer dependencies"
 
-  docker run --rm \
+  docker run --rm $COMPOSER_RUN_ARGS \
     -v "$APP_DIR:/app" \
     -w /app \
     $COMPOSER_IMAGE \
@@ -323,7 +332,7 @@ fi
 if [ -f "$APP_DIR/artisan" ]; then
   echo "🔑 Generate APP_KEY"
 
-  docker run --rm \
+  docker run --rm $COMPOSER_RUN_ARGS \
     -v "$APP_DIR:/${PROJECT}_app" \
     -w "/${PROJECT}_app" \
     $COMPOSER_IMAGE \

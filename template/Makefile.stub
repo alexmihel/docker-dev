@@ -1,6 +1,8 @@
 APP={{PROJECT}}_app
 DB=db
 NODE=node
+# Runs as the host user (see docker/entrypoint.sh), so generated files stay editable.
+EXEC=docker compose exec -u www-data
 
 # ── Docker ───────────────────────────────────────
 
@@ -23,32 +25,35 @@ logs-app:
 	docker compose logs -f $(APP)
 
 shell:
+	$(EXEC) $(APP) bash
+
+shell-root:
 	docker compose exec $(APP) bash
 
 # ── PHP / Composer ───────────────────────────────
 
 composer:
-	docker compose exec $(APP) composer $(cmd)
+	$(EXEC) $(APP) composer $(cmd)
 
 composer-install:
-	docker compose exec $(APP) composer install
+	$(EXEC) $(APP) composer install
 
 artisan:
-	docker compose exec $(APP) php artisan $(cmd)
+	$(EXEC) $(APP) php artisan $(cmd)
 
 tinker:
-	docker compose exec $(APP) php artisan tinker
+	$(EXEC) $(APP) php artisan tinker
 
 # ── Database ─────────────────────────────────────
 
 migrate:
-	docker compose exec $(APP) php artisan migrate
+	$(EXEC) $(APP) php artisan migrate
 
 seed:
-	docker compose exec $(APP) php artisan db:seed
+	$(EXEC) $(APP) php artisan db:seed
 
 fresh:
-	docker compose exec $(APP) php artisan migrate:fresh --seed
+	$(EXEC) $(APP) php artisan migrate:fresh --seed
 
 db-dump:
 	docker compose exec $(DB) pg_dump -U laravel db_{{PROJECT}} > ./dump_$$(date +%Y%m%d_%H%M%S).sql
@@ -65,7 +70,7 @@ db-upload:
 # ── Testing ──────────────────────────────────────
 
 test:
-	docker compose exec $(APP) php artisan test
+	$(EXEC) $(APP) php artisan test
 
 # ── Node / Frontend ──────────────────────────────
 
@@ -81,14 +86,15 @@ npm-build:
 # ── SSH keys (for GitHub / Bitbucket) ────────────
 
 ssh-keygen:
-	docker compose exec $(APP) bash -c "\
-		ssh-keygen -t ed25519 -C '{{PROJECT}}@prj.loc' -f /root/.ssh/id_ed25519 -N '' \
+	$(EXEC) $(APP) bash -c "\
+		mkdir -p ~/.ssh \
+		&& ssh-keygen -t ed25519 -C '{{PROJECT}}@prj.loc' -f ~/.ssh/id_ed25519 -N '' \
 		&& echo '' \
 		&& echo '── Public key (copy and add to GitHub/Bitbucket) ──' \
-		&& cat /root/.ssh/id_ed25519.pub"
+		&& cat ~/.ssh/id_ed25519.pub"
 
 ssh-show:
-	docker compose exec $(APP) cat /root/.ssh/id_ed25519.pub
+	$(EXEC) $(APP) bash -c 'cat ~/.ssh/id_ed25519.pub'
 
 # ── Helpers ──────────────────────────────────────
 
@@ -96,9 +102,9 @@ permissions:
 	docker compose exec $(APP) chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 cache-clear:
-	docker compose exec $(APP) php artisan optimize:clear
+	$(EXEC) $(APP) php artisan optimize:clear
 
-.PHONY: up down restart build logs logs-app shell \
+.PHONY: up down restart build logs logs-app shell shell-root \
         composer composer-install artisan tinker \
         migrate seed fresh db-dump db-restore db-upload \
         test npm-install npm-dev npm-build \
