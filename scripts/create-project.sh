@@ -15,6 +15,11 @@ if [ -z "$PROJECT" ]; then
   exit 1
 fi
 
+if [[ ! "$PROJECT" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]]; then
+  echo "❌ Use letters, digits, dots and hyphens; start and end with a letter or digit"
+  exit 1
+fi
+
 DOMAIN="prj.loc"
 PROJECT_HOST="${PROJECT}.${DOMAIN}"
 
@@ -264,22 +269,40 @@ fi
 if [ -f "$APP_DIR/.env" ]; then
   echo "⚙️ Configure Laravel .env"
 
-  sed -i '' \
-    -e "s|^APP_URL=.*|APP_URL=https://${PROJECT_HOST}|" \
-    -e "s|^APP_ENV=.*|APP_ENV=local|" \
-    -e "s|^APP_DEBUG=.*|APP_DEBUG=true|" \
-    \
-    -e "s|^DB_CONNECTION=.*|DB_CONNECTION=pgsql|" \
-    -e "s|^DB_HOST=.*|DB_HOST=db|" \
-    -e "s|^DB_PORT=.*|DB_PORT=5432|" \
-    -e "s|^DB_DATABASE=.*|DB_DATABASE=db_${PROJECT}|" \
-    -e "s|^DB_USERNAME=.*|DB_USERNAME=laravel|" \
-    -e "s|^DB_PASSWORD=.*|DB_PASSWORD=laravel|" \
-    \
-    -e "s|^REDIS_HOST=.*|REDIS_HOST=redis|" \
-    -e "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=null|" \
-    -e "s|^REDIS_PORT=.*|REDIS_PORT=6379|" \
-    "$APP_DIR/.env"
+  # Update active/commented keys, append missing ones and avoid duplicates.
+  # Write through a temporary file so a failed awk does not truncate .env.
+  set_env_value() {
+    local file="$1" key="$2" value="$3" tmp
+    tmp="$(mktemp "${file}.XXXXXX")"
+    if awk -v key="$key" -v value="$value" '
+      $0 ~ "^[[:space:]]*#?[[:space:]]*" key "[[:space:]]*=" {
+        if (!found) print key "=" value
+        found = 1
+        next
+      }
+      { print }
+      END { if (!found) print key "=" value }
+    ' "$file" > "$tmp"; then
+      cat "$tmp" > "$file"
+      rm -f "$tmp"
+    else
+      rm -f "$tmp"
+      return 1
+    fi
+  }
+
+  set_env_value "$APP_DIR/.env" APP_URL "https://${PROJECT_HOST}"
+  set_env_value "$APP_DIR/.env" APP_ENV local
+  set_env_value "$APP_DIR/.env" APP_DEBUG true
+  set_env_value "$APP_DIR/.env" DB_CONNECTION pgsql
+  set_env_value "$APP_DIR/.env" DB_HOST db
+  set_env_value "$APP_DIR/.env" DB_PORT 5432
+  set_env_value "$APP_DIR/.env" DB_DATABASE "db_${PROJECT}"
+  set_env_value "$APP_DIR/.env" DB_USERNAME laravel
+  set_env_value "$APP_DIR/.env" DB_PASSWORD laravel
+  set_env_value "$APP_DIR/.env" REDIS_HOST redis
+  set_env_value "$APP_DIR/.env" REDIS_PASSWORD null
+  set_env_value "$APP_DIR/.env" REDIS_PORT 6379
 fi
 
 
