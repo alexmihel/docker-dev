@@ -11,11 +11,11 @@
 ```bash
 cp .env.local.example .env.local   # заполнить Git и пути к SSH-ключам
 make up                            # сертификаты + Traefik
-make project name=blog             # создать проект, скрипт задаст вопросы
+make                               # создать проект, скрипт задаст вопросы
 cd projects/blog.prj.loc && make up
 ```
 
-Проект откроется на `https://blog.prj.loc`. Подставьте в `make project` своё имя вместо `blog`.
+Для проекта с именем `blog` адрес будет `https://blog.prj.loc`.
 
 ## Домены
 
@@ -70,7 +70,8 @@ CAROOT=~/dell-srv-ca mkcert -install
 | --- | --- |
 | `make up` | Приводит сертификаты, DNS и Traefik в соответствие с `DEV_DOMAIN` |
 | `make domain name=...` | Меняет домен машины |
-| `make project name=...` | Создаёт проект |
+| `make` | Создаёт проект, спросит имя и остальное |
+| `make project name=...` | То же, но с именем сразу |
 | `make certs` | Перевыпускает сертификат принудительно |
 
 В папке проекта, `projects/<имя>.<домен>/`:

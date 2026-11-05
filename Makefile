@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := project
+
 ## 🚀 Bring certificates, DNS and Traefik in line with DEV_DOMAIN
 up:
 	@./scripts/sync.sh
