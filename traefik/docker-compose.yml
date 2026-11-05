@@ -46,7 +46,7 @@ services:
       - "traefik.enable=true"
 
       # === Дашборд (оставил как было) ===
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.loc`)"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOST:-traefik.loc}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.tls=true"
@@ -77,9 +77,26 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.loc`)"
+      - "traefik.http.routers.whoami.rule=Host(`${WHOAMI_HOST:-whoami.loc}`)"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls=true"
+
+  # DNS for the Tailscale split-DNS domain. `make up` turns it on only on a Linux server with a custom DEV_DOMAIN.
+  dns:
+    build: ./dns
+    container_name: dev-dns
+    profiles: ["dns"]
+    restart: unless-stopped
+    # Host network + bind-dynamic: survives tailscale0 coming up after Docker on boot.
+    network_mode: host
+    command:
+      - "--keep-in-foreground"
+      - "--user=root"
+      - "--no-resolv"
+      - "--no-hosts"
+      - "--interface=tailscale0"
+      - "--bind-dynamic"
+      - "--address=/${DEV_DOMAIN:-prj.loc}/${DEV_DNS_IP:-127.0.0.1}"
 
 networks:
   proxy:

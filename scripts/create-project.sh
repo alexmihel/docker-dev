@@ -20,13 +20,13 @@ if [[ ! "$PROJECT" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]]; then
   exit 1
 fi
 
-DOMAIN="prj.loc"
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+DOMAIN="$DEV_DOMAIN"
 PROJECT_HOST="${PROJECT}.${DOMAIN}"
 
 # --------------------------------------------------
 # Paths
 # --------------------------------------------------
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECTS_DIR="$ROOT_DIR/projects"
 PROJECT_DIR="$PROJECTS_DIR/$PROJECT_HOST"
 APP_DIR="$PROJECT_DIR/$PROJECT"
@@ -86,6 +86,9 @@ if [ -d "$PROJECT_DIR" ]; then
     exit 1
   fi
 fi
+
+# Certificates and Traefik must match DEV_DOMAIN before the project is reachable.
+"$ROOT_DIR/scripts/sync.sh"
 
 echo ""
 read -rp "PHP version (default 8.3, e.g. 8.2): " PHP_VERSION
@@ -178,6 +181,7 @@ done
 sed \
   -e "s/{{PROJECT}}/$PROJECT/g" \
   -e "s/{{PROJECT_HOST}}/$PROJECT_HOST/g" \
+  -e "s/{{DOMAIN}}/$DOMAIN/g" \
   -e "s/{{DB_PORT}}/$DB_PORT/g" \
   "$TEMPLATE_COMPOSE" \
   > "$PROJECT_DIR/docker-compose.yml"
@@ -202,6 +206,7 @@ echo "📋 Generate Makefile"
 
 sed \
   -e "s/{{PROJECT}}/$PROJECT/g" \
+  -e "s/{{DOMAIN}}/$DOMAIN/g" \
   "$TEMPLATE_MAKEFILE" \
   > "$PROJECT_DIR/Makefile"
 

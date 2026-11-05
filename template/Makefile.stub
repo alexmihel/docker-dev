@@ -88,7 +88,7 @@ npm-build:
 ssh-keygen:
 	$(EXEC) $(APP) bash -c "\
 		mkdir -p ~/.ssh \
-		&& ssh-keygen -t ed25519 -C '{{PROJECT}}@prj.loc' -f ~/.ssh/id_ed25519 -N '' \
+		&& ssh-keygen -t ed25519 -C '{{PROJECT}}@{{DOMAIN}}' -f ~/.ssh/id_ed25519 -N '' \
 		&& echo '' \
 		&& echo '── Public key (copy and add to GitHub/Bitbucket) ──' \
 		&& cat ~/.ssh/id_ed25519.pub"

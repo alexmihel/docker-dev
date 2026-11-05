@@ -4,8 +4,9 @@ set -e
 # ----------------------------
 # Config
 # ----------------------------
-DOMAIN="prj.loc"
-CERTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/shared/certs"
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+DOMAIN="$DEV_DOMAIN"
+CERTS_DIR="$ROOT_DIR/shared/certs"
 
 CRT="${CERTS_DIR}/local.crt"
 KEY="${CERTS_DIR}/local.key"
@@ -15,7 +16,7 @@ KEY="${CERTS_DIR}/local.key"
 # ----------------------------
 if ! command -v mkcert >/dev/null 2>&1; then
   echo "❌ mkcert not installed"
-  echo "👉 brew install mkcert nss"
+  echo "👉 macOS: brew install mkcert nss | Ubuntu: sudo apt install mkcert"
   exit 1
 fi
 
@@ -27,8 +28,8 @@ mkcert -install
 echo "📜 Generating certificates for:"
 echo "   *.${DOMAIN}"
 echo "   ${DOMAIN}"
-echo "   traefik.loc"
-echo "   whoami.loc"
+echo "   ${TRAEFIK_HOST}"
+echo "   ${WHOAMI_HOST}"
 echo "   localhost, 127.0.0.1, ::1"
 
 # ----------------------------
@@ -39,8 +40,8 @@ mkcert \
   -key-file  "$KEY" \
   "*.${DOMAIN}" \
   "${DOMAIN}" \
-  traefik.loc \
-  whoami.loc \
+  "${TRAEFIK_HOST}" \
+  "${WHOAMI_HOST}" \
   localhost \
   127.0.0.1 \
   ::1

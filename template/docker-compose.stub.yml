@@ -6,14 +6,14 @@ services:
         INSTALL_GD: "${INSTALL_GD:-false}"
         INSTALL_IMAGICK: "${INSTALL_IMAGICK:-false}"
         INSTALL_EXIF: "${INSTALL_EXIF:-false}"
-    container_name: {{PROJECT}}.prj.loc-php
+    container_name: {{PROJECT}}.{{DOMAIN}}-php
     volumes:
       - ./{{PROJECT}}:/var/www/html
       - ${SSH_PRIVATE_KEY_PATH}:/tmp/ssh/id_rsa:ro
       - ${SSH_PUBLIC_KEY_PATH}:/tmp/ssh/id_rsa.pub:ro
       - ${SSH_KNOWN_HOSTS_PATH}:/tmp/ssh/known_hosts:ro
     environment:
-      PHP_IDE_CONFIG: serverName={{PROJECT}}.prj.loc
+      PHP_IDE_CONFIG: serverName={{PROJECT}}.{{DOMAIN}}
       HOST_UID: ${HOST_UID:-}
       HOST_GID: ${HOST_GID:-}
       GIT_AUTHOR_NAME:     ${GIT_AUTHOR_NAME}
@@ -27,7 +27,7 @@ services:
 
   nginx:
     image: nginx:stable
-    container_name: {{PROJECT}}.prj.loc-nginx
+    container_name: {{PROJECT}}.{{DOMAIN}}-nginx
     volumes:
       - ./{{PROJECT}}:/var/www/html
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
@@ -38,7 +38,7 @@ services:
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.{{PROJECT}}.rule=Host(`{{PROJECT}}.prj.loc`)"
+      - "traefik.http.routers.{{PROJECT}}.rule=Host(`{{PROJECT}}.{{DOMAIN}}`)"
       - "traefik.http.routers.{{PROJECT}}.entrypoints=websecure"
       - "traefik.http.routers.{{PROJECT}}.tls=true"
       - "traefik.http.routers.{{PROJECT}}.middlewares=https-redirect"
@@ -49,7 +49,7 @@ services:
 
   db:
     image: postgres:15
-    container_name: {{PROJECT}}.prj.loc-db
+    container_name: {{PROJECT}}.{{DOMAIN}}-db
     environment:
       POSTGRES_USER: laravel
       POSTGRES_PASSWORD: laravel
@@ -63,7 +63,7 @@ services:
 
   redis:
     image: redis:alpine
-    container_name: {{PROJECT}}.prj.loc-redis
+    container_name: {{PROJECT}}.{{DOMAIN}}-redis
     networks:
       - internal
 
@@ -74,7 +74,7 @@ services:
         INSTALL_GD: "${INSTALL_GD:-false}"
         INSTALL_IMAGICK: "${INSTALL_IMAGICK:-false}"
         INSTALL_EXIF: "${INSTALL_EXIF:-false}"
-    container_name: {{PROJECT}}.prj.loc-worker
+    container_name: {{PROJECT}}.{{DOMAIN}}-worker
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     entrypoint: []
     command: php artisan queue:work redis --queue=default --sleep=3 --tries=3 --max-time=3600
@@ -84,7 +84,7 @@ services:
       - redis
       - db
     environment:
-      PHP_IDE_CONFIG: serverName={{PROJECT}}.prj.loc
+      PHP_IDE_CONFIG: serverName={{PROJECT}}.{{DOMAIN}}
       GIT_AUTHOR_NAME:     ${GIT_AUTHOR_NAME}
       GIT_AUTHOR_EMAIL:    ${GIT_AUTHOR_EMAIL}
       GIT_COMMITTER_NAME:  ${GIT_COMMITTER_NAME}
@@ -95,7 +95,7 @@ services:
 
   node:
     image: node:20
-    container_name: {{PROJECT}}.prj.loc-node
+    container_name: {{PROJECT}}.{{DOMAIN}}-node
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     working_dir: /var/www/html
     environment:

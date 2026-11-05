@@ -1,3 +1,11 @@
+## 🚀 Bring certificates, DNS and Traefik in line with DEV_DOMAIN
+up:
+	@./scripts/sync.sh
+
+## 🌐 Switch this machine to another domain: make domain name=srv.loc
+domain:
+	@./scripts/set-domain.sh $(name)
+
 project:
 	@./scripts/create-project.sh $(name)
 
@@ -14,3 +22,5 @@ certs-clean:
 ssh-copy:
 	@cat ~/.ssh/id_rsa.pub | pbcopy
 	@echo "→ Public key copied to clipboard"
+
+.PHONY: up domain project certs certs-clean ssh-copy

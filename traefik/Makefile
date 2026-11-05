@@ -1,11 +1,11 @@
 up:
-	docker compose up -d
+	@../scripts/sync.sh
 
 down:
 	docker compose down
 
 restart:
-	docker compose down && docker compose up -d
+	docker compose down && ../scripts/sync.sh
 
 logs:
 	docker compose logs -f
